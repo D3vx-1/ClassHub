@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cyber">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClassHub - Admin Panel</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+  <!-- Flatpickr (Better Date/Time Picker) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <style>
+    :root {
+      /* Cyberpunk Cyan & Pink */
+      --primary: #00f2ea;
+      --primary-dim: rgba(0, 242, 234, 0.1);
+      --secondary: #ff0055;
+      --bg-dark: #050510;
+      --bg-panel: rgba(20, 20, 35, 0.7);
+      --text-main: #ffffff;
+      --text-muted: #a0a0b0;
+      --glass: blur(20px);
+      --font-main: 'Outfit', sans-serif;
+      --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(255, 0, 85, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 242, 234, 0.15) 0%, transparent 40%);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* --- Login Overlay --- */
+    #login-screen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-dark);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+    }
+    .login-box {
+      background: var(--bg-panel);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 3rem; border-radius: 24px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      backdrop-filter: var(--glass);
+      max-width: 400px; width: 90%;
+    }
+    .login-box h1 { font-weight: 800; font-size: 2.5rem; margin-bottom: 0.5rem; background: linear-gradient(to right, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .login-box input {
+      width: 100%; padding: 15px; margin: 20px 0;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; color: white; font-size: 1.1rem; outline: none;
+      text-align: center; transition: 0.3s;
+    }
+    .login-box input:focus { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-dim); }
+    .btn-glow {
+      background: linear-gradient(45deg, var(--primary), #00c2ff);
+      border: none; padding: 15px 40px; border-radius: 50px;
+      color: #000; font-weight: 800; font-size: 1.1rem; cursor: pointer;
+      transition: 0.3s; width: 100%;
+    }
+    .btn-glow:hover { transform: translateY(-3px); box-shadow: 0 0 20px var(--primary); }
+
+    /* --- Main App --- */
+    #app-container { display: none; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 0; margin-bottom: 30px;
+    }
+    .logo { font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; }
+    .logo i { color: var(--secondary); margin-right: 10px; }
+    .user-info { display: flex; align-items: center; gap: 15px; background: var(--bg-panel); padding: 8px 20px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); }
+    .status-dot { width: 10px; height: 10px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 10px var(--primary); }
+    .btn-logout { background: transparent; border: none; color: var(--secondary); cursor: pointer; font-size: 1.2rem; margin-left: 10px; transition: 0.3s; }
+    .btn-logout:hover { transform: scale(1.2); color: white; }
+
+    /* --- Admin Styles --- */
+    .admin-panel {
+      background: rgba(0, 242, 234, 0.05); border: 1px dashed var(--primary);
+      padding: 25px; border-radius: 20px; margin-bottom: 30px;
+    }
+    .admin-panel h3 { color: var(--primary); margin-bottom: 15px; }
+    .input-group { margin-bottom: 15px; }
+    .input-group input, .input-group textarea {
+      width: 100%; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.1);
+      padding: 12px; border-radius: 10px; color: white; font-family: var(--font-main);
+    }
+
+    .agenda-grid { display: grid; gap: 20px; }
+    .agenda-card {
+      background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.05);
+      padding: 25px; border-radius: 20px; position: relative;
+      backdrop-filter: blur(10px);
+    }
+    .agenda-date {
+      position: absolute; top: 20px; right: 20px;
+      background: rgba(255, 0, 85, 0.2); color: var(--secondary);
+      padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+    }
+    .agenda-title { font-size: 1.4rem; font-weight: 600; margin-bottom: 10px; color: white; }
+    .agenda-desc { color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+    .agenda-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1); }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: var(--secondary); color: white; padding: 12px 24px;
+      border-radius: 50px; font-weight: 600; box-shadow: 0 10px 30px rgba(255, 0, 85, 0.4);
+      opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000;
+    }
+    .toast.show { opacity: 1; bottom: 40px; }
+
+    /* Flatpickr Customization for Cyber Theme */
+    .flatpickr-calendar { background: var(--bg-panel) !important; border: 1px solid var(--primary) !important; box-shadow: 0 0 20px rgba(0, 242, 234, 0.2) !important; }
+    .flatpickr-day.selected { background: var(--primary) !important; border-color: var(--primary) !important; color: #000 !important; }
+    .flatpickr-time input:hover, .flatpickr-time .flatpickr-am-pm:hover, .flatpickr-time input:focus, .flatpickr-time .flatpickr-am-pm:focus { background: rgba(255,255,255,0.1) !important; }
+    .flatpickr-time .numInputWrapper span.arrowUp:after { border-bottom-color: var(--primary) !important; }
+    .flatpickr-time .numInputWrapper span.arrowDown:after { border-top-color: var(--primary) !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <div class="login-box">
+      <h1>ClassHub Admin</h1>
+      <p style="color:var(--text-muted)">Restricted Access</p>
+      <input type="password" id="passwordInput" placeholder="Enter Admin Password" autocomplete="off">
+      <button class="btn-glow" onclick="login()">LOGIN</button>
+    </div>
+  </div>
+
+  <!-- Main Application -->
+  <div id="app-container">
+    <header>
+      <div class="logo"><i class="fas fa-shield-alt"></i> ClassHub Admin</div>
+      <div class="user-info">
+        <div class="status-dot"></div>
+        <span id="displayUsername">Administrator</span>
+        <button class="btn-logout" onclick="logout()" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </header>
+
+    <!-- Admin Controls -->
+    <div class="admin-panel">
+      <h3><i class="fas fa-plus-circle"></i> Post New Agenda</h3>
+      <div class="input-group">
+        <input type="text" id="agendaTitle" placeholder="Title (e.g. Math Homework)">
+      </div>
+      <div class="input-group">
+        <textarea id="agendaDesc" rows="3" placeholder="Description details..."></textarea>
+      </div>
+      <div class="input-group">
+        <label style="color:var(--text-muted); font-size:0.8rem; margin-bottom:5px; display:block;">Auto-remove after (Optional):</label>
+        <input type="text" id="agendaEndDate" placeholder="Select Date & Time..." style="cursor:pointer;">
+      </div>
+      <button class="btn-glow" style="width:auto; padding: 10px 30px;" onclick="postAgenda()">Post Agenda</button>
+    </div>
+
+    <h3 style="margin-bottom:20px; color:var(--text-muted);">Recent Posts</h3>
+    <div id="agenda-list" class="agenda-grid">
+      <!-- Items will be injected here by JS -->
+    </div>
+
+    <h3 style="margin:40px 0 20px; color:var(--text-muted);">Chat Management</h3>
+    <div id="chat-list" style="background:var(--bg-panel); border-radius:20px; padding:20px; max-height:400px; overflow-y:auto; border:1px solid rgba(255,255,255,0.05);">
+      <!-- Chat items will be injected here -->
+    </div>
+
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast">Action Successful!</div>
+
+  <script>
+    // --- Firebase Configuration ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDEEdSatVG-p5ih7lyHCcMY44O2zYc-pZI",
+      authDomain: "mahmoud-agenda.firebaseapp.com",
+      projectId: "mahmoud-agenda",
+      storageBucket: "mahmoud-agenda.firebasestorage.app",
+      messagingSenderId: "524363104796",
+      appId: "1:524363104796:web:d9d14eef41f2f634f1d5d9",
+      measurementId: "G-1PCWX88ER9"
+    };
+
+    // Initialize Firebase
+    try {
+      firebase.initializeApp(firebaseConfig);
+    } catch (e) {
+      console.error("Firebase init error.", e);
+    }
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // --- Login Logic ---
+    function login() {
+      const input = document.getElementById('passwordInput');
+      const password = input.value.trim();
+      
+      // Password check as requested
+      if (password !== 'School') {
+        alert("Incorrect Password");
+        return;
+      }
+
+      // Save session
+      sessionStorage.setItem('classhub_admin_auth', 'true');
+
+      // UI Updates
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-container').style.display = 'block';
+
+      // Authenticate anonymously
+      auth.signInAnonymously()
+        .then(() => {
+          subscribeToAgenda();
+          subscribeToChat();
+        })
+        .catch((error) => {
+          console.error("Auth Error:", error);
+          subscribeToAgenda();
+          subscribeToChat();
+        });
+    }
+
+    // Auto-login check
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('classhub_admin_auth') === 'true') {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
+        auth.signInAnonymously().then(() => {
+          subscribeToAgenda();
+          subscribeToChat();
+        });
+      }
+    });
+
+    function logout() {
+      sessionStorage.removeItem('classhub_admin_auth');
+      location.reload();
+    }
+
+    // Initialize Flatpickr
+    document.addEventListener('DOMContentLoaded', function() {
+      flatpickr("#agendaEndDate", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minDate: "today",
+        time_24hr: false
+      });
+    });
+
+    // --- Agenda Logic ---
+    async function postAgenda() {
+      const title = document.getElementById('agendaTitle').value;
+      const desc = document.getElementById('agendaDesc').value;
+      const endDateVal = document.getElementById('agendaEndDate').value;
+
+      if (!title || !desc) return alert("Fill all fields");
+
+      let endDate = null;
+      if (endDateVal) {
+        endDate = firebase.firestore.Timestamp.fromDate(new Date(endDateVal));
+      }
+
+      try {
+        await db.collection('agenda').add({
+          title: title,
+          desc: desc,
+          endDate: endDate,
+          date: new Date().toLocaleDateString(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          author: "Admin"
+        });
+
+        // Clear inputs
+        document.getElementById('agendaTitle').value = '';
+        document.getElementById('agendaDesc').value = '';
+        document.getElementById('agendaEndDate').value = '';
+        showToast("Agenda Posted Successfully!");
+      } catch (err) {
+        console.error(err);
+        if (err.code === 'permission-denied') {
+          alert("⛔ Permission Denied\n\nYour database rules are blocking this write operation.");
+        } else {
+          alert("Error posting agenda: " + err.message);
+        }
+      }
+    }
+
+    function subscribeToAgenda() {
+      const container = document.getElementById('agenda-list');
+      
+      db.collection('agenda')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(snapshot => {
+          container.innerHTML = '';
+          
+          if (snapshot.empty) {
+            container.innerHTML = '<div style="text-align:center; color:var(--text-muted)">No agenda items yet.</div>';
+            return;
+          }
+
+          snapshot.forEach(doc => {
+            const item = doc.data();
+            const imgHtml = item.imageUrl ? `<img src="${item.imageUrl}" class="agenda-img" alt="Agenda Image">` : '';
+            const endHtml = item.endDate ? `<div style="font-size:0.8rem; color:var(--secondary); margin-bottom:10px;"><i class="fas fa-hourglass-end"></i> Ends: ${item.endDate.toDate().toLocaleString()}</div>` : '';
+            
+            const card = document.createElement('div');
+            card.className = 'agenda-card';
+            card.innerHTML = `
+              <div class="agenda-date">${item.date}</div>
+              <div class="agenda-title">${item.title}</div>
+              ${endHtml}
+              ${imgHtml}
+              <div class="agenda-desc">${item.desc}</div>
+              <button class="btn-glow" style="padding:5px 15px; font-size:0.8rem; background:rgba(255,0,85,0.2); color:var(--secondary);" onclick="deleteAgenda('${doc.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+              <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1);">
+                <h4 style="color:var(--primary); font-size:1rem; margin-bottom:10px;">Student Solutions</h4>
+                <div id="solutions-${doc.id}" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:10px;">
+                  <div style="font-size:0.8rem; color:var(--text-muted)">Loading...</div>
+                </div>
+              </div>
+            `;
+            container.appendChild(card);
+            loadSolutions(doc.id);
+          });
+        });
+    }
+
+    function loadSolutions(agendaId) {
+      const container = document.getElementById(`solutions-${agendaId}`);
+      db.collection('solutions')
+        .where('agendaId', '==', agendaId)
+        .onSnapshot(snap => {
+          container.innerHTML = '';
+          if (snap.empty) {
+            container.innerHTML = '<div style="grid-column:1/-1; font-size:0.8rem; color:var(--text-muted)">No submissions yet.</div>';
+            return;
+          }
+          
+          snap.forEach(sDoc => {
+            const sol = sDoc.data();
+            const div = document.createElement('div');
+            div.style.background = 'rgba(255,255,255,0.05)';
+            div.style.padding = '8px';
+            div.style.borderRadius = '8px';
+            div.style.textAlign = 'center';
+            div.style.position = 'relative';
+            
+            // Display Name and Image
+            div.innerHTML = `
+              <button onclick="deleteSolution('${sDoc.id}')" style="position:absolute; top:-5px; right:-5px; background:var(--secondary); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:10px; display:flex; align-items:center; justify-content:center; z-index:5;"><i class="fas fa-times"></i></button>
+              <div style="font-size:0.75rem; font-weight:bold; color:white; margin-bottom:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${sol.studentName}">
+                ${sol.studentName || 'Anonymous'}
+              </div>
+              <a href="${sol.solutionUrl}" target="_blank">
+                <img src="${sol.solutionUrl}" 
+                     style="width:100%; height:100px; object-fit:cover; border-radius:4px; border:1px solid rgba(255,255,255,0.1);" 
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\'font-size:0.7rem; color:var(--primary)\'>View Link</span>'">
+              </a>
+            `;
+            container.appendChild(div);
+          });
+        });
+    }
+
+    async function deleteSolution(id) {
+      if(!confirm("Delete this student submission?")) return;
+      try {
+        await db.collection('solutions').doc(id).delete();
+        showToast("Solution Deleted");
+      } catch(err) {
+        alert("Error deleting: " + err.message);
+      }
+    }
+
+    function subscribeToChat() {
+      const container = document.getElementById('chat-list');
+      db.collection('public_chat')
+        .orderBy('timestamp', 'desc')
+        .limit(50)
+        .onSnapshot(snapshot => {
+          container.innerHTML = '';
+          if (snapshot.empty) {
+            container.innerHTML = '<div style="color:var(--text-muted); text-align:center;">No messages found.</div>';
+            return;
+          }
+          
+          snapshot.forEach(doc => {
+            const msg = doc.data();
+            const div = document.createElement('div');
+            div.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);";
+            
+            div.innerHTML = `
+              <div style="flex:1; padding-right:10px;">
+                <div style="font-size:0.8rem; color:var(--primary); margin-bottom:4px;">
+                  ${escapeHtml(msg.sender)} <span style="color:var(--text-muted); margin-left:5px;">${msg.timestamp ? msg.timestamp.toDate().toLocaleString() : ''}</span>
+                </div>
+                <div style="color:white; word-break:break-word;">${escapeHtml(msg.text)}</div>
+              </div>
+              <button onclick="deleteMessage('${doc.id}')" style="background:rgba(255,0,85,0.2); color:var(--secondary); border:none; padding:8px 12px; border-radius:8px; cursor:pointer; transition:0.2s;">
+                <i class="fas fa-trash"></i>
+              </button>
+            `;
+            container.appendChild(div);
+          });
+        });
+    }
+
+    async function deleteMessage(id) {
+      if(!confirm("Delete this message?")) return;
+      try {
+        await db.collection('public_chat').doc(id).delete();
+        showToast("Message Deleted");
+      } catch(err) {
+        alert("Error deleting: " + err.message);
+      }
+    }
+
+    async function deleteAgenda(id) {
+      if(!confirm("Delete this agenda item?")) return;
+      try {
+        await db.collection('agenda').doc(id).delete();
+        showToast("Item Deleted");
+      } catch(err) {
+        alert("Error deleting: " + err.message);
+      }
+    }
+
+    // --- Utilities ---
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function escapeHtml(text) {
+      if (!text) return text;
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Handle Enter key on password input
+    document.getElementById('passwordInput').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
+  </script>
+</body>
+</html>
