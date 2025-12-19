@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassHub - Agenda & Chat</title>
- <link rel="icon" href="image.png">
+
+  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -91,6 +92,7 @@
     /* Navigation Tabs */
     .tabs {
       display: flex; gap: 20px; margin-bottom: 30px; justify-content: center;
+      flex-wrap: wrap;
     }
     .tab-btn {
       background: transparent; border: 1px solid rgba(255,255,255,0.1);
@@ -103,6 +105,16 @@
       color: var(--primary); box-shadow: 0 0 20px var(--primary-dim);
     }
     .tab-btn:hover:not(.active) { color: white; border-color: white; }
+
+    @media (max-width: 600px) {
+      .tabs { gap: 10px; }
+      .tab-btn {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+    }
 
     /* Content Areas */
     .view-section { display: none; animation: fadeIn 0.5s ease; }
@@ -225,6 +237,9 @@
       <button class="tab-btn" onclick="switchTab('chat')">
         <i class="fas fa-comments"></i> Public Chat
       </button>
+      <a href="ClassHub.apk" download class="tab-btn" style="text-decoration: none;">
+        <i class="fas fa-download"></i> Download App
+      </a>
     </div>
 
     <!-- Agenda View -->
@@ -587,5 +602,4 @@ const firebaseConfig = {
     }
   </script>
 </body>
-
 </html>
